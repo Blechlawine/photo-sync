@@ -1,4 +1,4 @@
-use gtk::{glib, Application, Button, Label, Box, Orientation};
+use gtk::{glib, Application, Box, Button, Label, Orientation};
 use gtk::{prelude::*, ApplicationWindow, FileChooserDialog};
 
 const APP_ID: &str = "de.zmarc.photosync";
