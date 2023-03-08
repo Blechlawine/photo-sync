@@ -22,37 +22,20 @@ pub enum Msg {
 }
 
 impl Win {
-    fn open_source_picker(&self) -> Option<PathBuf> {
-        let source_dialog = FileChooserDialog::new::<gtk::Window>(
+    fn open_folder_picker(&self) -> Option<PathBuf> {
+        let folder_dialog = FileChooserDialog::new::<gtk::Window>(
             Some("Select source directory"),
             Some(&self.root()),
             gtk::FileChooserAction::SelectFolder,
         );
-        source_dialog.set_select_multiple(false);
-        source_dialog.add_button("Select", gtk::ResponseType::Accept);
-        if source_dialog.run() == gtk::ResponseType::Accept {
-            let path = source_dialog.filename();
-            source_dialog.emit_close();
+        folder_dialog.set_select_multiple(false);
+        folder_dialog.add_button("Select", gtk::ResponseType::Accept);
+        if folder_dialog.run() == gtk::ResponseType::Accept {
+            let path = folder_dialog.filename();
+            folder_dialog.emit_close();
             return path;
         }
-        source_dialog.emit_close();
-        None
-    }
-
-    fn open_destination_picker(&self) -> Option<PathBuf> {
-        let destination_dialog = FileChooserDialog::new::<gtk::Window>(
-            Some("Select destination directory"),
-            Some(&self.root()),
-            gtk::FileChooserAction::SelectFolder,
-        );
-        destination_dialog.set_select_multiple(false);
-        destination_dialog.add_button("Select", gtk::ResponseType::Accept);
-        if destination_dialog.run() == gtk::ResponseType::Accept {
-            let path = destination_dialog.filename();
-            destination_dialog.emit_close();
-            return path;
-        }
-        destination_dialog.emit_close();
+        folder_dialog.emit_close();
         None
     }
 }
@@ -75,10 +58,10 @@ impl Widget for Win {
                 self.model.destination_path = Some(path);
             }
             Msg::OpenSourcePicker => {
-                self.model.source_path = self.open_source_picker();
+                self.model.source_path = self.open_folder_picker();
             }
             Msg::OpenDestinationPicker => {
-                self.model.destination_path = self.open_destination_picker();
+                self.model.destination_path = self.open_folder_picker();
             }
             Msg::Quit => gtk::main_quit(),
         }
