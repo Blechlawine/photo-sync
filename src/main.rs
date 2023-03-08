@@ -1,86 +1,113 @@
-use gtk::{glib, Application, Box, Button, Label, Orientation};
-use gtk::{prelude::*, ApplicationWindow, FileChooserDialog};
+use std::path::PathBuf;
 
-const APP_ID: &str = "de.zmarc.photosync";
+use gtk::traits::{ButtonExt, DialogExt, FileChooserExt, LabelExt, OrientableExt, WidgetExt};
+use gtk::Orientation::Vertical;
+use gtk::{FileChooserDialog, Inhibit};
 
-fn main() -> glib::ExitCode {
-    let app = Application::builder().application_id(APP_ID).build();
+use relm::Widget;
+use relm_derive::{widget, Msg};
 
-    app.connect_activate(build_ui);
-
-    app.run()
+pub struct Model {
+    source_path: Option<PathBuf>,
+    destination_path: Option<PathBuf>,
 }
 
-fn build_ui(app: &Application) {
-    let source_path_chooser = FileChooserDialog::builder()
-        .title("Select source directory")
-        .action(gtk::FileChooserAction::SelectFolder)
-        .build();
+#[derive(Msg)]
+pub enum Msg {
+    SourcePathSelected(PathBuf),
+    DestinationPathSelected(PathBuf),
+    OpenSourcePicker,
+    OpenDestinationPicker,
+    Quit,
+}
 
-    let destination_path_chooser = FileChooserDialog::builder()
-        .title("Select destination directory")
-        .action(gtk::FileChooserAction::SelectFolder)
-        .build();
-
-    let btn_open_source_picker = Button::builder().label("Select source directory").build();
-
-    let lbl_source_path = Label::builder()
-        .label("No source directory selected")
-        .build();
-
-    let btn_open_destination_picker = Button::builder()
-        .label("Select destination directory")
-        .build();
-
-    let lbl_destination_path = Label::builder()
-        .label("No destination directory selected")
-        .build();
-
-    let box_container = Box::new(Orientation::Vertical, 10);
-    box_container.set_margin_bottom(10);
-    box_container.set_margin_top(10);
-    box_container.set_margin_start(10);
-    box_container.set_margin_end(10);
-    box_container.append(&btn_open_source_picker);
-    box_container.append(&lbl_source_path);
-    box_container.append(&btn_open_destination_picker);
-    box_container.append(&lbl_destination_path);
-
-    source_path_chooser.add_button("Select", gtk::ResponseType::Accept);
-
-    source_path_chooser.connect_response(move |dialog, response| {
-        if response == gtk::ResponseType::Accept {
-            if let Some(file) = dialog.file() {
-                lbl_source_path.set_label(&file.path().unwrap().to_string_lossy());
-                dialog.destroy();
-            }
+impl Win {
+    fn open_source_picker(&self) -> Option<PathBuf> {
+        let source_dialog = FileChooserDialog::new::<gtk::Window>(
+            Some("Select source directory"),
+            Some(&self.root()),
+            gtk::FileChooserAction::SelectFolder,
+        );
+        source_dialog.set_select_multiple(false);
+        source_dialog.add_button("Select", gtk::ResponseType::Accept);
+        if source_dialog.run() == gtk::ResponseType::Accept {
+            let path = source_dialog.filename();
+            source_dialog.emit_close();
+            return path;
         }
-    });
+        source_dialog.emit_close();
+        None
+    }
 
-    destination_path_chooser.add_button("Select", gtk::ResponseType::Accept);
-
-    destination_path_chooser.connect_response(move |dialog, response| {
-        if response == gtk::ResponseType::Accept {
-            if let Some(file) = dialog.file() {
-                lbl_destination_path.set_label(&file.path().unwrap().to_string_lossy());
-                dialog.destroy();
-            }
+    fn open_destination_picker(&self) -> Option<PathBuf> {
+        let destination_dialog = FileChooserDialog::new::<gtk::Window>(
+            Some("Select destination directory"),
+            Some(&self.root()),
+            gtk::FileChooserAction::SelectFolder,
+        );
+        destination_dialog.set_select_multiple(false);
+        destination_dialog.add_button("Select", gtk::ResponseType::Accept);
+        if destination_dialog.run() == gtk::ResponseType::Accept {
+            let path = destination_dialog.filename();
+            destination_dialog.emit_close();
+            return path;
         }
-    });
+        destination_dialog.emit_close();
+        None
+    }
+}
 
-    btn_open_source_picker.connect_clicked(move |_| {
-        source_path_chooser.show();
-    });
+#[widget]
+impl Widget for Win {
+    fn model() -> Model {
+        Model {
+            source_path: None,
+            destination_path: None,
+        }
+    }
 
-    btn_open_destination_picker.connect_clicked(move |_| {
-        destination_path_chooser.show();
-    });
+    fn update(&mut self, event: Msg) {
+        match event {
+            Msg::SourcePathSelected(path) => {
+                self.model.source_path = Some(path);
+            }
+            Msg::DestinationPathSelected(path) => {
+                self.model.destination_path = Some(path);
+            }
+            Msg::OpenSourcePicker => {
+                self.model.source_path = self.open_source_picker();
+            }
+            Msg::OpenDestinationPicker => {
+                self.model.destination_path = self.open_destination_picker();
+            }
+            Msg::Quit => gtk::main_quit(),
+        }
+    }
 
-    let window = ApplicationWindow::builder()
-        .application(app)
-        .title("Photosync")
-        .child(&box_container)
-        .build();
+    view! {
+        gtk::Window {
+            gtk::Box {
+                orientation: Vertical,
+                gtk::Button {
+                    clicked => Msg::OpenSourcePicker,
+                    label: "Select source directory",
+                },
+                gtk::Label {
+                    label: &self.model.source_path.as_ref().unwrap_or(&PathBuf::new()).to_string_lossy(),
+                },
+                gtk::Button {
+                    clicked => Msg::OpenDestinationPicker,
+                    label: "Select destination directory",
+                },
+                gtk::Label {
+                    label: &self.model.destination_path.as_ref().unwrap_or(&PathBuf::new()).to_string_lossy(),
+                }
+            },
+            delete_event(_, _) => (Msg::Quit, Inhibit(false)),
+        }
+    }
+}
 
-    window.present();
+fn main() {
+    Win::run(()).unwrap();
 }
