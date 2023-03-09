@@ -1,11 +1,13 @@
 use std::path::PathBuf;
 
+use chrono::{DateTime, Utc};
+use fs_extra::file::CopyOptions;
 use gtk::traits::{
     BoxExt, ButtonExt, DialogExt, EntryExt, FileChooserExt, LabelExt, OrientableExt,
     ToggleButtonExt, WidgetExt,
 };
 use gtk::Orientation::Vertical;
-use gtk::{FileChooserDialog, Inhibit, EditableSignals};
+use gtk::{EditableSignals, FileChooserDialog, Inhibit};
 
 use relm::Widget;
 use relm_derive::{widget, Msg};
@@ -14,7 +16,7 @@ pub struct Model {
     source_path: Option<PathBuf>,
     destination_path: Option<PathBuf>,
     group_by_creation_date: bool,
-    date_format: Option<String>,
+    date_format: String,
     recursive: bool,
 }
 
@@ -25,9 +27,26 @@ pub enum Msg {
     UpdateGroupByCreationDate(bool),
     UpdateDateFormat(String),
     UpdateRecursive(bool),
+    MoveFiles,
     OpenSourcePicker,
     OpenDestinationPicker,
     Quit,
+}
+
+fn get_all_files(start_path: &PathBuf, recursive: bool) -> Vec<PathBuf> {
+    let mut files = vec![];
+    for entry in std::fs::read_dir(start_path).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        if path.is_dir() {
+            if recursive {
+                files.append(&mut get_all_files(&path, recursive));
+            }
+        } else if path.is_file() {
+            files.push(path);
+        }
+    }
+    files
 }
 
 impl Win {
@@ -47,6 +66,48 @@ impl Win {
         folder_dialog.emit_close();
         None
     }
+
+    fn move_files(&self) {
+        // if recursive is true, step through source path and move all files including subfolders
+        let source_path = self.model.source_path.as_ref().unwrap();
+        let destination_path = self.model.destination_path.as_ref().unwrap();
+        let mut files = get_all_files(source_path, self.model.recursive);
+        for file in files.iter_mut() {
+            let destination_file = {
+                if self.model.group_by_creation_date {
+                    // read creation date of file
+                    let metadata = std::fs::metadata(&file).unwrap();
+                    let creation_date = metadata.created().unwrap();
+                    let date_format = self.model.date_format.as_ref();
+                    let creation_date_utc: DateTime<Utc> = DateTime::from(creation_date);
+
+                    let result = destination_path.join(PathBuf::from(
+                        creation_date_utc.format(date_format).to_string(),
+                    ));
+                    if !result.exists() {
+                        std::fs::create_dir_all(&result).unwrap();
+                    }
+                    result.join(file.file_name().unwrap())
+                } else {
+                    destination_path.join(file.file_name().unwrap())
+                }
+            };
+
+            match fs_extra::file::move_file(&file, &destination_file, &CopyOptions::new()) {
+                Ok(_) => {
+                    println!("Moved {} to {}", file.display(), destination_file.display());
+                }
+                Err(e) => {
+                    println!(
+                        "Failed to move {} to {}: {}",
+                        file.display(),
+                        destination_file.display(),
+                        e
+                    );
+                }
+            };
+        }
+    }
 }
 
 #[widget]
@@ -56,7 +117,7 @@ impl Widget for Win {
             source_path: None,
             destination_path: None,
             group_by_creation_date: true,
-            date_format: None,
+            date_format: "%Y-%m-%d".to_string(),
             recursive: true,
         }
     }
@@ -79,10 +140,13 @@ impl Widget for Win {
                 self.model.group_by_creation_date = group_by_creation_date;
             }
             Msg::UpdateDateFormat(date_format) => {
-                self.model.date_format = Some(date_format);
+                self.model.date_format = date_format;
             }
             Msg::UpdateRecursive(recursive) => {
                 self.model.recursive = recursive;
+            }
+            Msg::MoveFiles => {
+                self.move_files();
             }
             Msg::Quit => gtk::main_quit(),
         }
@@ -115,7 +179,7 @@ impl Widget for Win {
                     toggled(btn) => Msg::UpdateGroupByCreationDate(btn.is_active()),
                 },
                 gtk::Entry {
-                    text: &self.model.date_format.as_ref().unwrap_or(&String::from("%Y-%m-%d")),
+                    text: &self.model.date_format.as_ref(),
                     sensitive: self.model.group_by_creation_date,
                     changed(entry) => Msg::UpdateDateFormat(entry.text().to_string()),
                 },
@@ -125,6 +189,11 @@ impl Widget for Win {
                 },
                 gtk::Label {
                     label: &self.model.destination_path.as_ref().unwrap_or(&PathBuf::new()).to_string_lossy(),
+                },
+                gtk::Button {
+                    label: "Move files",
+                    sensitive: self.model.source_path.is_some() && self.model.destination_path.is_some(),
+                    clicked => Msg::MoveFiles,
                 }
             },
             delete_event(_, _) => (Msg::Quit, Inhibit(false)),

@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+chrono = { version = "0.4.23", features = ["unstable-locales"] }
+fs_extra = "1.3.0"
 gtk = "0.16.0"
 relm = "0.24.0"
 relm-derive = "0.24.0"
