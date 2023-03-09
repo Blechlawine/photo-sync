@@ -15,6 +15,7 @@ pub struct Model {
     destination_path: Option<PathBuf>,
     group_by_creation_date: bool,
     date_format: Option<String>,
+    recursive: bool,
 }
 
 #[derive(Msg)]
@@ -23,6 +24,7 @@ pub enum Msg {
     DestinationPathSelected(PathBuf),
     UpdateGroupByCreationDate(bool),
     UpdateDateFormat(String),
+    UpdateRecursive(bool),
     OpenSourcePicker,
     OpenDestinationPicker,
     Quit,
@@ -55,6 +57,7 @@ impl Widget for Win {
             destination_path: None,
             group_by_creation_date: true,
             date_format: None,
+            recursive: true,
         }
     }
 
@@ -78,6 +81,9 @@ impl Widget for Win {
             Msg::UpdateDateFormat(date_format) => {
                 self.model.date_format = Some(date_format);
             }
+            Msg::UpdateRecursive(recursive) => {
+                self.model.recursive = recursive;
+            }
             Msg::Quit => gtk::main_quit(),
         }
     }
@@ -99,9 +105,14 @@ impl Widget for Win {
                     label: &self.model.source_path.as_ref().unwrap_or(&PathBuf::new()).to_string_lossy(),
                 },
                 gtk::CheckButton {
+                    label: "Recursive",
+                    active: self.model.recursive,
+                    toggled(btn) => Msg::UpdateRecursive(btn.is_active()),
+                },
+                gtk::CheckButton {
                     label: "Group by creation date",
                     active: self.model.group_by_creation_date,
-                    toggled(w) => Msg::UpdateGroupByCreationDate(w.is_active()),
+                    toggled(btn) => Msg::UpdateGroupByCreationDate(btn.is_active()),
                 },
                 gtk::Entry {
                     text: &self.model.date_format.as_ref().unwrap_or(&String::from("%Y-%m-%d")),
