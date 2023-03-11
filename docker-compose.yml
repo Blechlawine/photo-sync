@@ -1,0 +1,10 @@
+version: '3'
+services:
+  builder:
+    image: photo-sync-builder
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    volumes:
+      - ./:/home/rustacean/src
+    container_name: photo-sync-builder
