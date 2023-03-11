@@ -54,7 +54,7 @@ fn get_all_files(start_path: &PathBuf, recursive: bool) -> Vec<PathBuf> {
 impl Win {
     fn open_folder_picker(&self) -> Option<PathBuf> {
         let folder_dialog = FileChooserDialog::new::<gtk::Window>(
-            Some("Select source directory"),
+            Some("Select directory"),
             Some(&self.root()),
             gtk::FileChooserAction::SelectFolder,
         );
