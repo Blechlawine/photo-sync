@@ -15,3 +15,4 @@ Built with:
 - [ ] preview selected/scanned files
 - [ ] setting for how to handle conflicts
 - [ ] save settings for restart
+- [ ] libadwaita theme
