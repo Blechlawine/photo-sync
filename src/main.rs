@@ -16,6 +16,7 @@ pub struct Model {
     source_path: Option<PathBuf>,
     destination_path: Option<PathBuf>,
     group_by_creation_date: bool,
+    copy: bool, // true for copying, false for moving
     date_format: String,
     recursive: bool,
 }
@@ -27,6 +28,7 @@ pub enum Msg {
     UpdateGroupByCreationDate(bool),
     UpdateDateFormat(String),
     UpdateRecursive(bool),
+    UpdateCopy(bool),
     MoveFiles,
     OpenSourcePicker,
     OpenDestinationPicker,
@@ -92,20 +94,43 @@ impl Win {
                     destination_path.join(file.file_name().unwrap())
                 }
             };
-
-            match fs_extra::file::move_file(&file, &destination_file, &CopyOptions::new()) {
-                Ok(_) => {
-                    println!("Moved {} to {}", file.display(), destination_file.display());
+            if self.model.copy {
+                match std::fs::copy(&file, &destination_file) {
+                    Ok(_) => {
+                        println!(
+                            "File {} copied to {}",
+                            file.display(),
+                            destination_file.display()
+                        );
+                    }
+                    Err(e) => {
+                        println!(
+                            "Error copying file {} to {}: {}",
+                            file.display(),
+                            destination_file.display(),
+                            e
+                        );
+                    }
                 }
-                Err(e) => {
-                    println!(
-                        "Failed to move {} to {}: {}",
-                        file.display(),
-                        destination_file.display(),
-                        e
-                    );
-                }
-            };
+            } else {
+                match fs_extra::file::move_file(&file, &destination_file, &CopyOptions::new()) {
+                    Ok(_) => {
+                        println!(
+                            "File {} moved to {}",
+                            file.display(),
+                            destination_file.display()
+                        );
+                    }
+                    Err(e) => {
+                        println!(
+                            "Failed to move {} to {}: {}",
+                            file.display(),
+                            destination_file.display(),
+                            e
+                        );
+                    }
+                };
+            }
         }
     }
 }
@@ -119,6 +144,7 @@ impl Widget for Win {
             group_by_creation_date: true,
             date_format: "%Y-%m-%d".to_string(),
             recursive: true,
+            copy: true,
         }
     }
 
@@ -145,6 +171,9 @@ impl Widget for Win {
             Msg::UpdateRecursive(recursive) => {
                 self.model.recursive = recursive;
             }
+            Msg::UpdateCopy(copy) => {
+                self.model.copy = copy;
+            }
             Msg::MoveFiles => {
                 self.move_files();
             }
@@ -167,6 +196,11 @@ impl Widget for Win {
                 },
                 gtk::Label {
                     label: &self.model.source_path.as_ref().unwrap_or(&PathBuf::new()).to_string_lossy(),
+                },
+                gtk::CheckButton {
+                    label: "Copy files instead of moving",
+                    active: self.model.copy,
+                    toggled(btn) => Msg::UpdateCopy(btn.is_active()),
                 },
                 gtk::CheckButton {
                     label: "Recursive",

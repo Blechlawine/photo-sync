@@ -11,4 +11,7 @@ Built with:
 - [X] can group by creation date
   - [X] user can format what the folder is named
 - [ ] progress bar
-- [ ] copy files
+- [X] copy files
+- [ ] preview selected/scanned files
+- [ ] setting for how to handle conflicts
+- [ ] save settings for restart
